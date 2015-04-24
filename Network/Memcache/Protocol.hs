@@ -14,6 +14,8 @@ import System.IO
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
 import Data.Word
+import Data.Time
+import Data.Time.Clock.POSIX
 
 -- | Gather results from action until condition is true.
 ioUntil :: (a -> Bool) -> IO a -> IO [a]
@@ -41,7 +43,13 @@ hPutCommand h strs = hPutNetLn h (unwords strs) >> hFlush h
 
 type Flags = Word32
 
+data Expiry = Seconds Word32 | Date UTCTime
+    deriving (Show)
+-- figure out how to limit seconds to the memcached limit of 30 days.
+
 newtype Connection = Connection { sHandle :: Handle }
+
+never = Seconds 0
 
 -- connect :: String -> Network.Socket.PortNumber -> IO Connection
 connect :: Network.HostName -> Network.PortNumber -> IO Connection
@@ -63,11 +71,11 @@ stats (Connection handle) = do
                       (key:rest) -> (key, unwords rest)
                       []         -> (line, "")
 
-store :: (Key k, Serializable s) => String -> Connection -> Word32 -> Flags -> k -> s -> IO Bool
+store :: (Key k, Serializable s) => String -> Connection -> Expiry -> Flags -> k -> s -> IO Bool
 store action (Connection handle) exptime flags key val = do
   let valstr = serialize val
   let bytes = B.length valstr
-  let cmd = unwords [action, toKey key, show flags, show exptime, show bytes]
+  let cmd = unwords [action, toKey key, show flags, show (expiryToWord exptime), show bytes]
   hPutNetLn handle cmd
   hBSPutNetLn handle valstr
   hFlush handle
@@ -84,8 +92,8 @@ getOneValue handle = do
       return $ Just val
     _ -> return Nothing
 
-incDec :: (Key k) => String -> Connection -> Word32 -> k -> Word32 -> IO (Maybe Int)
-incDec cmd (Connection handle) exptime key delta = do
+incDec :: (Key k) => String -> Connection -> k -> Word32 -> IO (Maybe Int)
+incDec cmd (Connection handle) key delta = do
   hPutCommand handle [cmd, toKey key, show delta]
   response <- hGetNetLn handle
   case response of
@@ -107,5 +115,8 @@ delete (Connection handle) key = do
   response <- hGetNetLn handle
   return (response == "DELETED")
 
+expiryToWord :: Expiry -> Word32
+expiryToWord (Seconds s) = max (30 * 24 * 60 * 60) s
+expiryToWord (Date d) = floor (utcTimeToPOSIXSeconds d)
 
 -- vim: set ts=2 sw=2 et :
