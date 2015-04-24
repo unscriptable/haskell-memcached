@@ -14,14 +14,14 @@ import Data.Word
 
 -- | A memcached server connection.
 data Server = Server {
-        conn :: P.Connection, -- ^ connection
-        expiry :: P.Expiry, -- ^ expiration
-        flags :: P.Flags -- ^ extra bits stored with each key-value
-        -- ^ Note: must be memcached 1.2.1 and higher to support 32 bits
-    } |
-    Simple {
-        conn :: P.Connection -- ^ connection
-    }
+    conn :: P.Connection, -- ^ connection
+    expiry :: P.Expiry, -- ^ expiration
+    flags :: P.Flags -- ^ extra bits stored with each key-value
+    -- ^ Note: must be memcached 1.2.1 and higher to support 32 bits
+  } |
+  Simple {
+    conn :: P.Connection -- ^ connection
+  }
 
 class Memcache a where
   set, add, replace :: (Key k, Serializable s) => a -> k -> s -> IO Bool
@@ -31,13 +31,16 @@ class Memcache a where
 
 instance Memcache Server where
   get s                  = P.get (conn s)
+
   delete s               = P.delete (conn s)
-  set (Simple s)         = P.store "set" s P.never 0
+
+  set (Simple s)         = P.store "set" s P.Never 0
   set (Server s e f)     = P.store "set" s e f
-  add (Simple s)         = P.store "add" s P.never 0
+  add (Simple s)         = P.store "add" s P.Never 0
   add (Server s e f)     = P.store "add" s e f
-  replace (Simple s)     = P.store "replace" s P.never 0
+  replace (Simple s)     = P.store "replace" s P.Never 0
   replace (Server s e f) = P.store "replace" s e f
+
   incr (Simple s)        = P.incDec "incr" s
   incr (Server s _ _)    = P.incDec "incr" s
   decr (Simple s)        = P.incDec "decr" s

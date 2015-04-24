@@ -16,6 +16,7 @@ import Data.ByteString (ByteString)
 import Data.Word
 import Data.Time
 import Data.Time.Clock.POSIX
+import Control.Applicative ((<$>))
 
 -- | Gather results from action until condition is true.
 ioUntil :: (a -> Bool) -> IO a -> IO [a]
@@ -43,13 +44,14 @@ hPutCommand h strs = hPutNetLn h (unwords strs) >> hFlush h
 
 type Flags = Word32
 
-data Expiry = Seconds Word32 | Date UTCTime
-    deriving (Show)
+data Expiry =
+  Never |
+  Seconds Word32 |
+  Date UTCTime
+  deriving (Show)
 -- figure out how to limit seconds to the memcached limit of 30 days.
 
 newtype Connection = Connection { sHandle :: Handle }
-
-never = Seconds 0
 
 -- connect :: String -> Network.Socket.PortNumber -> IO Connection
 connect :: Network.HostName -> Network.PortNumber -> IO Connection
@@ -72,10 +74,11 @@ stats (Connection handle) = do
                       []         -> (line, "")
 
 store :: (Key k, Serializable s) => String -> Connection -> Expiry -> Flags -> k -> s -> IO Bool
-store action (Connection handle) exptime flags key val = do
+store action (Connection handle) expiry flags key val = do
   let valstr = serialize val
   let bytes = B.length valstr
-  let cmd = unwords [action, toKey key, show flags, show (expiryToWord exptime), show bytes]
+  exptime <- expiryToWord expiry
+  let cmd = unwords [action, toKey key, show flags, show exptime, show bytes]
   hPutNetLn handle cmd
   hBSPutNetLn handle valstr
   hFlush handle
@@ -115,8 +118,21 @@ delete (Connection handle) key = do
   response <- hGetNetLn handle
   return (response == "DELETED")
 
-expiryToWord :: Expiry -> Word32
-expiryToWord (Seconds s) = max (30 * 24 * 60 * 60) s
-expiryToWord (Date d) = floor (utcTimeToPOSIXSeconds d)
+expiryToWord :: Expiry -> IO Word32
+expiryToWord expiry = do
+  case expiry of
+    Never     -> return 0
+    Date d    -> return $ floor $ utcTimeToPOSIXSeconds d
+    Seconds s -> safeMemcachedSeconds s
+
+thirtyDays = 30 * 24 * 60 * 60
+
+safeMemcachedSeconds :: Word32 -> IO Word32
+safeMemcachedSeconds seconds = do
+  if seconds <= thirtyDays
+    -- fits within memcached "relative" range
+    then return seconds
+    -- "absolute" range. convert to a Unix time
+    else (+ seconds) . floor <$> getPOSIXTime
 
 -- vim: set ts=2 sw=2 et :
