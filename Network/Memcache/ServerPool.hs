@@ -3,9 +3,9 @@
 
 module Network.Memcache.ServerPool where
 
-import qualified Network.Memcache.Protocol as P
+import qualified Network.Memcache as M
 
-data Server = Server P.Server Int
+data Server = Server M.Server Int
 data Pool = Pool (String -> Int)
 
 -- vim: set ts=2 sw=2 et :
