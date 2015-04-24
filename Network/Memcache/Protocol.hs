@@ -1,16 +1,12 @@
 -- Memcached interface.
 -- Copyright (C) 2005 Evan Martin <martine@danga.com>
 
-module Network.Memcache.Protocol (
-  Server,
-  connect,disconnect,stats   -- server-specific commands
-) where
+module Network.Memcache.Protocol where
 
 -- TODO:
 --  - use exceptions where appropriate for protocol errors
 --  - expiration time in store
 
-import Network.Memcache
 import qualified Network
 import Network.Memcache.Key
 import Network.Memcache.Serializable
@@ -42,19 +38,19 @@ hGetNetLn h = fmap init (hGetLine h) -- init gets rid of \r
 hPutCommand :: Handle -> [String] -> IO ()
 hPutCommand h strs = hPutNetLn h (unwords strs) >> hFlush h
 
-newtype Server = Server { sHandle :: Handle }
+newtype Connection = Connection { sHandle :: Handle }
 
--- connect :: String -> Network.Socket.PortNumber -> IO Server
-connect :: Network.HostName -> Network.PortNumber -> IO Server
+-- connect :: String -> Network.Socket.PortNumber -> IO Connection
+connect :: Network.HostName -> Network.PortNumber -> IO Connection
 connect host port = do
   handle <- Network.connectTo host (Network.PortNumber port)
-  return (Server handle)
+  return (Connection handle)
 
-disconnect :: Server -> IO ()
+disconnect :: Connection -> IO ()
 disconnect = hClose . sHandle
 
-stats :: Server -> IO [(String, String)]
-stats (Server handle) = do
+stats :: Connection -> IO [(String, String)]
+stats (Connection handle) = do
   hPutCommand handle ["stats"]
   statistics <- ioUntil (== "END") (hGetNetLn handle)
   return $ map (tupelize . stripSTAT) statistics where
@@ -64,10 +60,9 @@ stats (Server handle) = do
                       (key:rest) -> (key, unwords rest)
                       []         -> (line, "")
 
-store :: (Key k, Serializable s) => String -> Server -> k -> s -> IO Bool
-store action (Server handle) key val = do
+store :: (Key k, Serializable s) => String -> Connection -> Int -> Int -> k -> s -> IO Bool
+store action (Connection handle) exptime flags key val = do
   let flags = (0::Int)
-  let exptime = (0::Int)
   let valstr = serialize val
   let bytes = B.length valstr
   let cmd = unwords [action, toKey key, show flags, show exptime, show bytes]
@@ -87,36 +82,28 @@ getOneValue handle = do
       return $ Just val
     _ -> return Nothing
 
-incDec :: (Key k) => String -> Server -> k -> Int -> IO (Maybe Int)
-incDec cmd (Server handle) key delta = do
+incDec :: (Key k) => String -> Connection -> Int -> Int -> k -> Int -> IO (Maybe Int)
+incDec cmd (Connection handle) exptime flags key delta = do
   hPutCommand handle [cmd, toKey key, show delta]
   response <- hGetNetLn handle
   case response of
     "NOT_FOUND" -> return Nothing
     x           -> return $ Just (read x)
 
+get (Connection handle) key = do
+  hPutCommand handle ["get", toKey key]
+  val <- getOneValue handle
+  case val of
+    Nothing -> return Nothing
+    Just val -> do
+      hGetNetLn handle
+      hGetNetLn handle
+      return $ deserialize val
 
-instance Memcache Server where
-  set     = store "set"
-  add     = store "add"
-  replace = store "replace"
+delete (Connection handle) key delta = do
+  hPutCommand handle ["delete", toKey key, show delta]
+  response <- hGetNetLn handle
+  return (response == "DELETED")
 
-  get (Server handle) key = do
-    hPutCommand handle ["get", toKey key]
-    val <- getOneValue handle
-    case val of
-      Nothing -> return Nothing
-      Just val -> do
-        hGetNetLn handle
-        hGetNetLn handle
-        return $ deserialize val
-
-  delete (Server handle) key delta = do
-    hPutCommand handle ["delete", toKey key, show delta]
-    response <- hGetNetLn handle
-    return (response == "DELETED")
-
-  incr = incDec "incr"
-  decr = incDec "decr"
 
 -- vim: set ts=2 sw=2 et :
