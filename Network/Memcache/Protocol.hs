@@ -100,8 +100,8 @@ get (Connection handle) key = do
       hGetNetLn handle
       return $ deserialize val
 
-delete (Connection handle) key delta = do
-  hPutCommand handle ["delete", toKey key, show delta]
+delete (Connection handle) key = do
+  hPutCommand handle ["delete", toKey key]
   response <- hGetNetLn handle
   return (response == "DELETED")
 
