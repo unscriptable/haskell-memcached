@@ -13,6 +13,7 @@ import Network.Memcache.Serializable
 import System.IO
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
+import Data.Word
 
 -- | Gather results from action until condition is true.
 ioUntil :: (a -> Bool) -> IO a -> IO [a]
@@ -38,6 +39,8 @@ hGetNetLn h = fmap init (hGetLine h) -- init gets rid of \r
 hPutCommand :: Handle -> [String] -> IO ()
 hPutCommand h strs = hPutNetLn h (unwords strs) >> hFlush h
 
+type Flags = Word32
+
 newtype Connection = Connection { sHandle :: Handle }
 
 -- connect :: String -> Network.Socket.PortNumber -> IO Connection
@@ -60,9 +63,8 @@ stats (Connection handle) = do
                       (key:rest) -> (key, unwords rest)
                       []         -> (line, "")
 
-store :: (Key k, Serializable s) => String -> Connection -> Int -> Int -> k -> s -> IO Bool
+store :: (Key k, Serializable s) => String -> Connection -> Word32 -> Flags -> k -> s -> IO Bool
 store action (Connection handle) exptime flags key val = do
-  let flags = (0::Int)
   let valstr = serialize val
   let bytes = B.length valstr
   let cmd = unwords [action, toKey key, show flags, show exptime, show bytes]
@@ -82,8 +84,8 @@ getOneValue handle = do
       return $ Just val
     _ -> return Nothing
 
-incDec :: (Key k) => String -> Connection -> Int -> Int -> k -> Int -> IO (Maybe Int)
-incDec cmd (Connection handle) exptime flags key delta = do
+incDec :: (Key k) => String -> Connection -> Word32 -> k -> Word32 -> IO (Maybe Int)
+incDec cmd (Connection handle) exptime key delta = do
   hPutCommand handle [cmd, toKey key, show delta]
   response <- hGetNetLn handle
   case response of
