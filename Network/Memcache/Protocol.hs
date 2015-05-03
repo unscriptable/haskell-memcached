@@ -53,7 +53,6 @@ data Expiry =
 
 newtype Connection = Connection { sHandle :: Handle }
 
--- connect :: String -> Network.Socket.PortNumber -> IO Connection
 connect :: Network.HostName -> Network.PortNumber -> IO Connection
 connect host port = do
   handle <- Network.connectTo host (Network.PortNumber port)
@@ -73,25 +72,31 @@ stats (Connection handle) = do
                       (key:rest) -> (key, unwords rest)
                       []         -> (line, "")
 
-store :: (Key k, Serializable s) => String -> Connection -> Expiry -> Flags -> k -> s -> IO Bool
+store :: (Key k, Serializable s) => String -> Connection -> Expiry -> Maybe Flags -> k -> s -> IO Bool
 store action (Connection handle) expiry flags key val = do
   let valstr = serialize val
   let bytes = B.length valstr
   exptime <- expiryToWord expiry
-  let cmd = unwords [action, toKey key, show flags, show exptime, show bytes]
+  let cmd = unwords [action, toKey key, showFlags flags, show exptime, show bytes]
   hPutNetLn handle cmd
   hBSPutNetLn handle valstr
   hFlush handle
   response <- hGetNetLn handle
+  -- hPutStr stderr $ "command: " ++ cmd ++ "\n"
+  -- hPutStr stderr $ "response: " ++ response ++ "\n"
   return (response == "STORED")
 
 getOneValue :: Handle -> IO (Maybe ByteString)
 getOneValue handle = do
   s <- hGetNetLn handle
+  -- hPutStr stderr $ "received: " ++ s ++ "\n"
   case words s of
     ["VALUE", _, _, sbytes] -> do
       let count = read sbytes
       val <- B.hGet handle count
+    --   hPutStr stderr $ "val: "
+    --   hPutStr stderr $ show val
+    --   hPutStr stderr $ "\n"
       return $ Just val
     _ -> return Nothing
 
@@ -134,5 +139,8 @@ safeMemcachedSeconds seconds = do
     then return seconds
     -- "absolute" range. convert to a Unix time
     else (+ seconds) . floor <$> getPOSIXTime
+
+showFlags Nothing = "0"
+showFlags (Just f) = show f
 
 -- vim: set ts=2 sw=2 et :

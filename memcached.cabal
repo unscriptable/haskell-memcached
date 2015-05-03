@@ -1,5 +1,5 @@
 name:                memcached
-version:             0.2.1
+version:             0.2.2
 stability:           Alpha
 synopsis:            haskell bindings for memcached
 description:         haskell bindings for memcached
@@ -29,9 +29,11 @@ extra-source-files:
 
 exposed-modules:
   Network.Memcache,
+  Network.Memcache.Server,
+  Network.Memcache.Memcache,
   Network.Memcache.Protocol,
   Network.Memcache.Serializable,
-  Network.Memcache.ServerPool,
   Network.Memcache.Key
 
+ghc-options:         -Wall
 ghc-prof-options:    -prof -auto-all
