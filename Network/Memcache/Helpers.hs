@@ -9,7 +9,7 @@ import Network.Memcache.Server (Server, NoConnection, configure, connect, discon
 import Network.Memcache.Protocol (Connection, Expiry(Seconds))
 import Network.Memcache.Memcache (get, set)
 import Network (HostName, PortNumber)
-import Control.Exception
+import Control.Exception (finally)
 
 {- |
     Given an IO operation, `a -> IO b`, where `a` is keyable and `b` is
