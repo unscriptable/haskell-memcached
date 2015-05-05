@@ -4,16 +4,20 @@
 module Network.Memcache.Server (
   Server(..),
   NoConnection,
+  AutoConnection,
   configure,
+  configureA,
   connect,
-  disconnect
+  disconnect,
+  autoConnect
 ) where
 
 import qualified Network.Memcache.Protocol as P
 import qualified Network.Memcache.Memcache as MC
 
-import Control.Exception (finally)
+import Control.Exception (finally, bracket)
 import Network (HostName, PortNumber)
+import Control.Applicative
 
 {- TODO:
     - consider some of these updates:
@@ -52,6 +56,9 @@ defaultPort = 11211 :: PortNumber
 configure :: P.Expiry -> Maybe P.Flags -> Server NoConnection
 configure = Disconnected
 
+configureA :: HostName -> Maybe PortNumber -> P.Expiry -> Maybe P.Flags -> Server AutoConnection
+configureA h p e f = AutoConnected (AutoConnection h p) e f
+
 connect :: Server NoConnection -> HostName -> Maybe PortNumber
     -> IO (Server P.Connection)
 connect server host Nothing = connect server host (Just defaultPort)
@@ -59,17 +66,15 @@ connect (Disconnected expiry flags) host (Just port) = do
   conn <- P.connect host port
   return $ Connected conn expiry flags
 
-autoConnect :: Server AutoConnection
-    -> (Server P.Connection -> IO v) -> IO v
-autoConnect (AutoConnected (AutoConnection host port) expiry flags) op = do
-    let sn = configure expiry flags
-    sc <- connect sn host port
-    op sc `finally` disconnect sc
+autoConnect :: Server AutoConnection -> (Server P.Connection -> IO r) -> IO r
+autoConnect sa = bracket (connectA sa) disconnect
+
+connectA :: Server AutoConnection -> IO (Server P.Connection)
+connectA (AutoConnected (AutoConnection host port) expiry flags) =
+  connect (configure expiry flags) host port
 
 disconnect :: Server P.Connection -> IO (Server NoConnection)
-disconnect s@(Connected c e f) = do
-  -- sConn implies Connected
-  (P.disconnect . cConn) s >> return (Disconnected e f)
+disconnect (Connected c e f) = P.disconnect c >> return (Disconnected e f)
 
 instance MC.Memcache (Server P.Connection) where
   get                       = P.get . cConn
@@ -81,18 +86,10 @@ instance MC.Memcache (Server P.Connection) where
   decr                      = P.incDec "decr" . cConn
 
 instance MC.Memcache (Server AutoConnection) where
-  get s k        = autoConnect s ((flip MC.get) k)
-  delete s k     = autoConnect s ((flip MC.delete) k)
-
-  -- set, add, replace :: a -> k -> s -> IO Bool
-  set s k v       = autoConnect s (op k v)
-    where op = (\ k v c -> MC.set c k v )
-  add s k v       = autoConnect s (op k v)
-    where op = (\ k v c -> MC.add c k v )
-  replace s k v       = autoConnect s (op k v)
-    where op = (\ k v c -> MC.replace c k v )
-
-  incr s k i = autoConnect s (op k i)
-    where op = (\ k i c -> MC.incr c k i )
-  incr s k i = autoConnect s (op k i)
-    where op = (\ k i c -> MC.decr c k i )
+  get s k       = autoConnect s (\ sc -> MC.get sc k)
+  delete s k    = autoConnect s (\ sc -> MC.delete sc k)
+  set s k v     = autoConnect s (\ sc -> MC.set sc k v)
+  add s k v     = autoConnect s (\ sc -> MC.add sc k v)
+  replace s k v = autoConnect s (\ sc -> MC.replace sc k v)
+  incr s k i    = autoConnect s (\ sc -> MC.incr sc k i)
+  decr s k i    = autoConnect s (\ sc -> MC.decr sc k i)
