@@ -1,4 +1,8 @@
-module Network.Memcache.Cluster where
+module Network.Memcache.Cluster (
+    Cluster(..),
+    Distribute,
+    simple
+) where
 
 import Network.Memcache.Server
 import Network.Memcache.Key
@@ -13,10 +17,7 @@ data Cluster =
     distribute :: Distribute
   }
 
-type Distribute = [Server NoConnection] -> String -> Server NoConnection
-
-choose :: Cluster -> String -> Server NoConnection
-choose (Cluster ss dist) keyable = dist ss (toKey keyable)
+type Distribute = [Server AutoConnection] -> String -> Server AutoConnection
 
 -- TODO: ketama (requires an MD5 library)
 -- Reference: http://www.last.fm/user/RJ/journal/2007/04/10/rz_libketama_-_a_consistent_hashing_algo_for_memcache_clients
@@ -25,7 +26,7 @@ choose (Cluster ss dist) keyable = dist ss (toKey keyable)
 
 -- this seems ok for short keys
 -- TODO: prevent empty list of servers from getting here
-simple :: String -> [Server NoConnection] -> Server NoConnection
+simple :: String -> [Server AutoConnection] -> Server AutoConnection
 simple k (s : []) = s
 simple k ss       = head . snd $ splitAt idx ss
   where
@@ -33,13 +34,12 @@ simple k ss       = head . snd $ splitAt idx ss
     idx = (hash . toKey) k `mod` length ss
 
 instance Memcache Cluster where
-  get cl k                  = P.get (getConnection cl k)
-  delete cl k               = P.delete (getConnection cl k)
-  set cl e f k              = P.store "set" (getConnection cl k) e f
-  -- add (Connected s e f)     = P.store "add" s e f
-  -- replace (Connected s e f) = P.store "replace" s e f
-  -- incr (Connected s _ _)    = P.incDec "incr" s
-  -- decr (Connected s _ _)    = P.incDec "decr" s
+  get cl k     = get (getServer cl k) k
+  delete cl k  = delete (getServer cl k) k
+  set cl k     = set (getServer cl k) k
+  add cl k     = add (getServer cl k) k
+  replace cl k = replace (getServer cl k) k
+  incr cl k    = incr (getServer cl k) k
+  decr cl k    = decr (getServer cl k) k
 
--- TODO: figure out how to connect the server.  They're all Server NoConnection!
-getConnection cl key = cConn (distribute cl (servers cl) key)
+getServer cl key = distribute cl (servers cl) (toKey key)

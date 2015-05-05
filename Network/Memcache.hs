@@ -5,12 +5,14 @@ module Network.Memcache (
     module Network.Memcache.Server,
     Protocol.Expiry(..),
     Memcache.Memcache(..),
-    module Network.Memcache.Helpers
+    module Network.Memcache.Helpers,
+    module Network.Memcache.Cluster
 ) where
 
 import qualified Network.Memcache.Protocol as Protocol
 import Network.Memcache.Server
 import qualified Network.Memcache.Memcache as Memcache
 import Network.Memcache.Helpers
+import Network.Memcache.Cluster
 
 -- vim: set ts=2 sw=2 et :

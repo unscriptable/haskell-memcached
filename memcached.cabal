@@ -33,7 +33,9 @@ exposed-modules:
   Network.Memcache.Memcache,
   Network.Memcache.Protocol,
   Network.Memcache.Serializable,
-  Network.Memcache.Key
+  Network.Memcache.Key,
+  Network.Memcache.Cluster,
+  Network.Memcache.Helpers
 
 ghc-options:         -Wall
 ghc-prof-options:    -prof -auto-all
