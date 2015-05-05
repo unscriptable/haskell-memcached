@@ -1,6 +1,5 @@
 module Network.Memcache.Helpers (
-    cachedOp,
-    autoConnect
+    cachedOp
 ) where
 
 import Network.Memcache.Serializable (Serializable)
@@ -19,34 +18,14 @@ import Control.Exception (finally)
     cached key-result pair, `(a, b)`, rather than perform the original IO
     operation.
 -}
-cachedOp :: (Key a, Serializable b) => (a -> IO b) -> Server Connection -> a -> IO b
-cachedOp op sc a = do
-    let key = toKey a
+cachedOp :: (Key k, Serializable v) =>
+  (k -> IO v) -> Server Connection -> k -> IO v
+cachedOp op sc k = do
+    let key = toKey k
     cached <- get sc key
     case cached of
         Just val -> return val
         Nothing  -> do
-            val <- op a
+            val <- op k
             _ <- set sc key val -- TODO: log if a set is unsuccessful?
             return val
-
-{- |
-    Given an unconnected memcached server, a host name, a port number,
-    transform a function that expects a connected memcached server and an
-    IO operation, `a -> IO b`, into an IO operation that automatically
-    converts the unconnected server into a connected server and performs
-    the original IO operation.
--}
-autoConnect :: Server NoConnection -> HostName -> Maybe PortNumber
-    -> (Server Connection -> a -> IO b) -> a -> IO b
-autoConnect sn host mport op a = do
-    sc <- connect sn host mport
-    op sc a `finally` disconnect sc
-
-sn = configure (Seconds 1800) Nothing
-myCachedOp = autoConnect sn "foo.com" Nothing (cachedOp someOp)
-
-someOp :: String -> IO String
-someOp a = do
-    print a
-    return a
