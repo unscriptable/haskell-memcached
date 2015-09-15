@@ -1,15 +1,18 @@
 -- Memcached interface.
 -- Copyright (C) 2005 Evan Martin <martine@danga.com>
 
-module Network.Memcache where
+module Network.Memcache (
+    module Network.Memcache.Server,
+    Protocol.Expiry(..),
+    Memcache.Memcache(..),
+    module Network.Memcache.Helpers,
+    module Network.Memcache.Cluster
+) where
 
-import Network.Memcache.Serializable
-import Network.Memcache.Key
-
-class Memcache a where
-  set, add, replace :: (Key k, Serializable s) => a -> k -> s -> IO Bool
-  get               :: (Key k, Serializable s) => a -> k -> IO (Maybe s)
-  delete            :: (Key k) => a -> k -> Int -> IO Bool
-  incr, decr        :: (Key k) => a -> k -> Int -> IO (Maybe Int)
+import qualified Network.Memcache.Protocol as Protocol
+import Network.Memcache.Server
+import qualified Network.Memcache.Memcache as Memcache
+import Network.Memcache.Helpers
+import Network.Memcache.Cluster
 
 -- vim: set ts=2 sw=2 et :

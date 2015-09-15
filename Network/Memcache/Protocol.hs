@@ -1,22 +1,22 @@
 -- Memcached interface.
 -- Copyright (C) 2005 Evan Martin <martine@danga.com>
 
-module Network.Memcache.Protocol (
-  Server,
-  connect,disconnect,stats   -- server-specific commands
-) where
+module Network.Memcache.Protocol where
 
 -- TODO:
 --  - use exceptions where appropriate for protocol errors
 --  - expiration time in store
 
-import Network.Memcache
 import qualified Network
 import Network.Memcache.Key
 import Network.Memcache.Serializable
 import System.IO
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)
+import Data.Word
+import Data.Time
+import Data.Time.Clock.POSIX
+import Control.Applicative ((<$>))
 
 -- | Gather results from action until condition is true.
 ioUntil :: (a -> Bool) -> IO a -> IO [a]
@@ -42,19 +42,27 @@ hGetNetLn h = fmap init (hGetLine h) -- init gets rid of \r
 hPutCommand :: Handle -> [String] -> IO ()
 hPutCommand h strs = hPutNetLn h (unwords strs) >> hFlush h
 
-newtype Server = Server { sHandle :: Handle }
+type Flags = Word32
 
--- connect :: String -> Network.Socket.PortNumber -> IO Server
-connect :: Network.HostName -> Network.PortNumber -> IO Server
+data Expiry =
+  Never |
+  Seconds Word32 |
+  Date UTCTime
+  deriving (Show)
+-- figure out how to limit seconds to the memcached limit of 30 days.
+
+newtype Connection = Connection { sHandle :: Handle }
+
+connect :: Network.HostName -> Network.PortNumber -> IO Connection
 connect host port = do
   handle <- Network.connectTo host (Network.PortNumber port)
-  return (Server handle)
+  return (Connection handle)
 
-disconnect :: Server -> IO ()
+disconnect :: Connection -> IO ()
 disconnect = hClose . sHandle
 
-stats :: Server -> IO [(String, String)]
-stats (Server handle) = do
+stats :: Connection -> IO [(String, String)]
+stats (Connection handle) = do
   hPutCommand handle ["stats"]
   statistics <- ioUntil (== "END") (hGetNetLn handle)
   return $ map (tupelize . stripSTAT) statistics where
@@ -64,59 +72,75 @@ stats (Server handle) = do
                       (key:rest) -> (key, unwords rest)
                       []         -> (line, "")
 
-store :: (Key k, Serializable s) => String -> Server -> k -> s -> IO Bool
-store action (Server handle) key val = do
-  let flags = (0::Int)
-  let exptime = (0::Int)
+store :: (Key k, Serializable s) => String -> Connection -> Expiry -> Maybe Flags -> k -> s -> IO Bool
+store action (Connection handle) expiry flags key val = do
   let valstr = serialize val
   let bytes = B.length valstr
-  let cmd = unwords [action, toKey key, show flags, show exptime, show bytes]
+  exptime <- expiryToWord expiry
+  let cmd = unwords [action, toKey key, showFlags flags, show exptime, show bytes]
   hPutNetLn handle cmd
   hBSPutNetLn handle valstr
   hFlush handle
   response <- hGetNetLn handle
+  -- hPutStr stderr $ "command: " ++ cmd ++ "\n"
+  -- hPutStr stderr $ "response: " ++ response ++ "\n"
   return (response == "STORED")
 
 getOneValue :: Handle -> IO (Maybe ByteString)
 getOneValue handle = do
   s <- hGetNetLn handle
+  -- hPutStr stderr $ "received: " ++ s ++ "\n"
   case words s of
     ["VALUE", _, _, sbytes] -> do
       let count = read sbytes
       val <- B.hGet handle count
+    --   hPutStr stderr $ "val: "
+    --   hPutStr stderr $ show val
+    --   hPutStr stderr $ "\n"
       return $ Just val
     _ -> return Nothing
 
-incDec :: (Key k) => String -> Server -> k -> Int -> IO (Maybe Int)
-incDec cmd (Server handle) key delta = do
+incDec :: (Key k) => String -> Connection -> k -> Word32 -> IO (Maybe Int)
+incDec cmd (Connection handle) key delta = do
   hPutCommand handle [cmd, toKey key, show delta]
   response <- hGetNetLn handle
   case response of
     "NOT_FOUND" -> return Nothing
     x           -> return $ Just (read x)
 
+get (Connection handle) key = do
+  hPutCommand handle ["get", toKey key]
+  val <- getOneValue handle
+  case val of
+    Nothing -> return Nothing
+    Just val -> do
+      hGetNetLn handle
+      hGetNetLn handle
+      return $ deserialize val
 
-instance Memcache Server where
-  set     = store "set"
-  add     = store "add"
-  replace = store "replace"
+delete (Connection handle) key = do
+  hPutCommand handle ["delete", toKey key]
+  response <- hGetNetLn handle
+  return (response == "DELETED")
 
-  get (Server handle) key = do
-    hPutCommand handle ["get", toKey key]
-    val <- getOneValue handle
-    case val of
-      Nothing -> return Nothing
-      Just val -> do
-        hGetNetLn handle
-        hGetNetLn handle
-        return $ deserialize val
+expiryToWord :: Expiry -> IO Word32
+expiryToWord expiry = do
+  case expiry of
+    Never     -> return 0
+    Date d    -> return $ floor $ utcTimeToPOSIXSeconds d
+    Seconds s -> safeMemcachedSeconds s
 
-  delete (Server handle) key delta = do
-    hPutCommand handle ["delete", toKey key, show delta]
-    response <- hGetNetLn handle
-    return (response == "DELETED")
+thirtyDays = 30 * 24 * 60 * 60
 
-  incr = incDec "incr"
-  decr = incDec "decr"
+safeMemcachedSeconds :: Word32 -> IO Word32
+safeMemcachedSeconds seconds = do
+  if seconds <= thirtyDays
+    -- fits within memcached "relative" range
+    then return seconds
+    -- "absolute" range. convert to a Unix time
+    else (+ seconds) . floor <$> getPOSIXTime
+
+showFlags Nothing = "0"
+showFlags (Just f) = show f
 
 -- vim: set ts=2 sw=2 et :
