@@ -46,7 +46,7 @@ type Flags = Word32
 
 data Expiry =
   Never |
-  Seconds Word32 |
+  Seconds Word32 | -- ^ Limited at run-time to 2592000 seconds (30 days).
   Date UTCTime
   deriving (Show)
 -- figure out how to limit seconds to the memcached limit of 30 days.
@@ -76,7 +76,7 @@ store :: (Key k, Serializable s) => String -> Connection -> Expiry -> Maybe Flag
 store action (Connection handle) expiry flags key val = do
   let valstr = serialize val
   let bytes = B.length valstr
-  exptime <- expiryToWord expiry
+  let exptime = expiryToWord expiry
   let cmd = unwords [action, toKey key, showFlags flags, show exptime, show bytes]
   hPutNetLn handle cmd
   hBSPutNetLn handle valstr
@@ -123,24 +123,18 @@ delete (Connection handle) key = do
   response <- hGetNetLn handle
   return (response == "DELETED")
 
-expiryToWord :: Expiry -> IO Word32
+expiryToWord :: Expiry -> Word32
 expiryToWord expiry = do
   case expiry of
-    Never     -> return 0
-    Date d    -> return $ floor $ utcTimeToPOSIXSeconds d
+    Never     -> 0
+    Date d    -> floor (utcTimeToPOSIXSeconds d)
     Seconds s -> safeMemcachedSeconds s
 
 thirtyDays = 30 * 24 * 60 * 60
 
-safeMemcachedSeconds :: Word32 -> IO Word32
-safeMemcachedSeconds seconds = do
-  if seconds <= thirtyDays
-    -- fits within memcached "relative" range
-    then return seconds
-    -- "absolute" range. convert to a Unix time
-    else (+ seconds) . floor <$> getPOSIXTime
+-- | Prevents accidental converstion to Unix time by memcached
+safeMemcachedSeconds :: Word32 -> Word32
+safeMemcachedSeconds seconds = min seconds thirtyDays
 
 showFlags Nothing = "0"
 showFlags (Just f) = show f
-
--- vim: set ts=2 sw=2 et :
