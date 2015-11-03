@@ -1,6 +1,3 @@
--- Memcached interface.
--- Copyright (C) 2005 Evan Martin <martine@danga.com>
-
 module Network.Memcache (
     module Network.Memcache.Server,
     Protocol.Expiry(..),
@@ -14,5 +11,3 @@ import Network.Memcache.Server
 import qualified Network.Memcache.Memcache as Memcache
 import Network.Memcache.Helpers
 import Network.Memcache.Cluster
-
--- vim: set ts=2 sw=2 et :

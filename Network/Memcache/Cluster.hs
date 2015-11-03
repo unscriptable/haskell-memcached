@@ -7,7 +7,6 @@ module Network.Memcache.Cluster (
 import Network.Memcache.Server
 import Network.Memcache.Key
 import Network.Memcache.Memcache
-import qualified Network.Memcache.Protocol as P
 
 import Data.List (foldl')
 
@@ -26,12 +25,12 @@ type Distribute = [Server AutoConnection] -> String -> Server AutoConnection
 
 -- this seems ok for short keys
 -- TODO: prevent empty list of servers from getting here
-simple :: String -> [Server AutoConnection] -> Server AutoConnection
-simple k (s : []) = s
-simple k ss       = head . snd $ splitAt idx ss
+simple :: Distribute
+simple (s : []) _ = s -- single server special case
+simple ss k       = head . snd $ splitAt idx ss
   where
-    hash = foldl' (\c i -> i + c * 31) 0 . map fromEnum
     idx = (hash . toKey) k `mod` length ss
+    hash = foldl' (\c i -> i + c * 31) 0 . map fromEnum
 
 instance Memcache Cluster where
   get cl k     = get (getServer cl k) k
@@ -42,4 +41,5 @@ instance Memcache Cluster where
   incr cl k    = incr (getServer cl k) k
   decr cl k    = decr (getServer cl k) k
 
+getServer :: (Key k) => Cluster -> k -> Server AutoConnection
 getServer cl key = distribute cl (servers cl) (toKey key)

@@ -15,9 +15,8 @@ module Network.Memcache.Server (
 import qualified Network.Memcache.Protocol as P
 import qualified Network.Memcache.Memcache as MC
 
-import Control.Exception (finally, bracket)
+import Control.Exception (bracket)
 import Network (HostName, PortNumber)
-import Control.Applicative
 
 {- TODO:
     - consider some of these updates:
@@ -32,26 +31,27 @@ import Control.Applicative
 -- mc <- connect "my-mc-server"
 -- Reference: https://github.com/memcached/memcached/blob/master/doc/protocol.txt
 data Server c where
-  Disconnected {
+  Disconnected :: {
     dExpiry :: P.Expiry, -- ^ expiration
     dFlags :: Maybe P.Flags -- ^ extra bits stored with each key-value
-  } :: Server NoConnection
-  Connected {
+  } -> Server NoConnection
+  Connected :: {
     cConn :: P.Connection, -- ^ connection
     cExpiry :: P.Expiry, -- ^ expiration
     cFlags :: Maybe P.Flags -- ^ extra bits stored with each key-value
     -- ^ Note: must be memcached 1.2.1 and higher to support 32 bits
-  } :: Server P.Connection
-  AutoConnected {
+  } -> Server P.Connection
+  AutoConnected :: {
     aConn :: AutoConnection,
     aExpirty :: P.Expiry,
     aFlags :: Maybe P.Flags
-  } :: Server AutoConnection
+  } -> Server AutoConnection
 
 data NoConnection
 data AutoConnection = AutoConnection HostName (Maybe PortNumber)
 
-defaultPort = 11211 :: PortNumber
+defaultPort :: PortNumber
+defaultPort = 11211
 
 configure :: P.Expiry -> Maybe P.Flags -> Server NoConnection
 configure = Disconnected

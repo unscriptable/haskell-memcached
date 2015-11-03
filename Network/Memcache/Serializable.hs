@@ -1,21 +1,7 @@
--- Memcached interface.
--- Copyright (C) 2005 Evan Martin <martine@danga.com>
-
 module Network.Memcache.Serializable(Serializable, serialize, deserialize) where
 
 import Data.ByteString (ByteString)
 import Codec.Binary.UTF8.Light (encode, decode)
-
--- It'd be nice to use "show" for serialization, but when we
--- serialize a String we want to serialize it without the quotes.
-
--- TODO:
---  - allow serializing bytes as Ptr
---    to do this, add a "putToHandle", etc. method in Serializable
---    where the default uses serialize, but for Ptr uses socket stuff.
-
---import Foreign.Marshal.Utils
---import Foreign.Storable (Storable, sizeOf)
 
 class Serializable a where
   serialize    :: a -> ByteString

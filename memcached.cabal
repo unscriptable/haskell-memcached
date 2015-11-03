@@ -1,17 +1,17 @@
 name:                memcached
 version:             0.2.2
 stability:           Alpha
-synopsis:            haskell bindings for memcached
-description:         haskell bindings for memcached
+synopsis:            Haskell Memcached client
+description:         Haskell Memcached client
 category:            Network
 license:             OtherLicense
 license-file:        LICENSE
-author:              Evan Martin <martine@danga.com>
-maintainer:          Janrain <hackage@janrain.com>
-homepage:            http://github.com/olegkat/haskell-memcached
+author:              John Hann <john@nowait.com>
+maintainer:          John Hann <john@nowait.com>
+homepage:            http://github.com/nowaitapp/haskell-memcached
 build-type:          Simple
 
-tested-with:         GHC==6.8.2, GHC==6.10
+tested-with:         GHC==7.10.2
 
 build-depends:
   base >3 && <5,

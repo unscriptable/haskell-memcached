@@ -1,11 +1,4 @@
--- Memcached interface.
--- Copyright (C) 2005 Evan Martin <martine@danga.com>
-
 module Network.Memcache.Protocol where
-
--- TODO:
---  - use exceptions where appropriate for protocol errors
---  - expiration time in store
 
 import qualified Network
 import Network.Memcache.Key
@@ -49,7 +42,6 @@ data Expiry =
   Seconds Word32 | -- ^ Limited at run-time to 2592000 seconds (30 days).
   Date UTCTime
   deriving (Show)
--- figure out how to limit seconds to the memcached limit of 30 days.
 
 newtype Connection = Connection { sHandle :: Handle }
 
@@ -108,16 +100,19 @@ incDec cmd (Connection handle) key delta = do
     "NOT_FOUND" -> return Nothing
     x           -> return $ Just (read x)
 
+get :: (Key k, Serializable s) => Connection -> k -> IO (Maybe s)
 get (Connection handle) key = do
   hPutCommand handle ["get", toKey key]
-  val <- getOneValue handle
-  case val of
+  mval <- getOneValue handle
+  case mval of
     Nothing -> return Nothing
     Just val -> do
       hGetNetLn handle
       hGetNetLn handle
       return $ deserialize val
 
+-- TODO: consider throwing instead of returning bool
+delete :: (Key k) => Connection -> k -> IO Bool
 delete (Connection handle) key = do
   hPutCommand handle ["delete", toKey key]
   response <- hGetNetLn handle
@@ -130,11 +125,13 @@ expiryToWord expiry = do
     Date d    -> floor (utcTimeToPOSIXSeconds d)
     Seconds s -> safeMemcachedSeconds s
 
+thirtyDays :: Word32
 thirtyDays = 30 * 24 * 60 * 60
 
 -- | Prevents accidental converstion to Unix time by memcached
 safeMemcachedSeconds :: Word32 -> Word32
 safeMemcachedSeconds seconds = min seconds thirtyDays
 
+showFlags :: Maybe Flags -> String
 showFlags Nothing = "0"
 showFlags (Just f) = show f
