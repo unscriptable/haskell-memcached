@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE FlexibleInstances #-}
-module Network.Memcache.Server (
+module Network.Memcached.Server (
   Server(..),
   NoConnection,
   AutoConnection,
@@ -12,8 +12,8 @@ module Network.Memcache.Server (
   autoConnect
 ) where
 
-import qualified Network.Memcache.Protocol as P
-import qualified Network.Memcache.Memcache as MC
+import qualified Network.Memcached.Protocol as P
+import qualified Network.Memcached.Memcached as MC
 
 import Control.Exception (bracket)
 import Network (HostName, PortNumber)
@@ -76,7 +76,7 @@ connectA (AutoConnected (AutoConnection host port) expiry flags) =
 disconnect :: Server P.Connection -> IO (Server NoConnection)
 disconnect (Connected c e f) = P.disconnect c >> return (Disconnected e f)
 
-instance MC.Memcache (Server P.Connection) where
+instance MC.Memcached (Server P.Connection) where
   get                       = P.get . cConn
   delete                    = P.delete . cConn
   set (Connected c e f)     = P.store "set" c e f
@@ -85,7 +85,7 @@ instance MC.Memcache (Server P.Connection) where
   incr                      = P.incDec "incr" . cConn
   decr                      = P.incDec "decr" . cConn
 
-instance MC.Memcache (Server AutoConnection) where
+instance MC.Memcached (Server AutoConnection) where
   get s k       = autoConnect s (\ sc -> MC.get sc k)
   delete s k    = autoConnect s (\ sc -> MC.delete sc k)
   set s k v     = autoConnect s (\ sc -> MC.set sc k v)

@@ -1,8 +1,8 @@
-module Network.Memcache.Protocol where
+module Network.Memcached.Protocol where
 
 import qualified Network
-import Network.Memcache.Key
-import Network.Memcache.Serializable
+import Network.Memcached.Key
+import Network.Memcached.Serializable
 import System.IO
 import qualified Data.ByteString as B
 import Data.ByteString (ByteString)

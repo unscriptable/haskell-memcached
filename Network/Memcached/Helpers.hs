@@ -1,12 +1,12 @@
-module Network.Memcache.Helpers (
+module Network.Memcached.Helpers (
     cachedOp
 ) where
 
-import Network.Memcache.Serializable (Serializable)
-import Network.Memcache.Key (Key, toKey)
-import Network.Memcache.Server (Server, NoConnection, configure, connect, disconnect)
-import Network.Memcache.Protocol (Connection, Expiry(Seconds))
-import Network.Memcache.Memcache (get, set)
+import Network.Memcached.Serializable (Serializable)
+import Network.Memcached.Key (Key, toKey)
+import Network.Memcached.Server (Server, NoConnection, configure, connect, disconnect)
+import Network.Memcached.Protocol (Connection, Expiry(Seconds))
+import Network.Memcached.Memcached (get, set)
 import Network (HostName, PortNumber)
 import Control.Exception (finally)
 

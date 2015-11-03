@@ -1,4 +1,4 @@
-module Network.Memcache.Serializable(Serializable, serialize, deserialize) where
+module Network.Memcached.Serializable(Serializable, serialize, deserialize) where
 
 import Data.ByteString (ByteString)
 import Codec.Binary.UTF8.Light (encode, decode)

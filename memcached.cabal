@@ -1,5 +1,5 @@
 name:                memcached
-version:             0.2.2
+version:             0.2.3
 stability:           Alpha
 synopsis:            Haskell Memcached client
 description:         Haskell Memcached client
@@ -28,14 +28,14 @@ extra-source-files:
   NEWS
 
 exposed-modules:
-  Network.Memcache,
-  Network.Memcache.Server,
-  Network.Memcache.Memcache,
-  Network.Memcache.Protocol,
-  Network.Memcache.Serializable,
-  Network.Memcache.Key,
-  Network.Memcache.Cluster,
-  Network.Memcache.Helpers
+  Network.Memcached,
+  Network.Memcached.Server,
+  Network.Memcached.Memcached,
+  Network.Memcached.Protocol,
+  Network.Memcached.Serializable,
+  Network.Memcached.Key,
+  Network.Memcached.Cluster,
+  Network.Memcached.Helpers
 
 ghc-options:         -Wall
 ghc-prof-options:    -prof -auto-all

@@ -1,10 +1,10 @@
-module Network.Memcache.Memcache where
+module Network.Memcached.Memcached where
 
-import Network.Memcache.Key
-import Network.Memcache.Serializable
+import Network.Memcached.Key
+import Network.Memcached.Serializable
 import Data.Word
 
-class Memcache a where
+class Memcached a where
   set, add, replace :: (Key k, Serializable v) => a -> k -> v -> IO Bool
   get               :: (Key k, Serializable v) => a -> k -> IO (Maybe v)
   delete            :: (Key k) => a -> k -> IO Bool

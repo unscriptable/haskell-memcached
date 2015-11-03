@@ -1,12 +1,12 @@
-module Network.Memcache.Cluster (
+module Network.Memcached.Cluster (
     Cluster(..),
     Distribute,
     simple
 ) where
 
-import Network.Memcache.Server
-import Network.Memcache.Key
-import Network.Memcache.Memcache
+import Network.Memcached.Server
+import Network.Memcached.Key
+import Network.Memcached.Memcached
 
 import Data.List (foldl')
 
@@ -32,7 +32,7 @@ simple ss k       = head . snd $ splitAt idx ss
     idx = (hash . toKey) k `mod` length ss
     hash = foldl' (\c i -> i + c * 31) 0 . map fromEnum
 
-instance Memcache Cluster where
+instance Memcached Cluster where
   get cl k     = get (getServer cl k) k
   delete cl k  = delete (getServer cl k) k
   set cl k     = set (getServer cl k) k

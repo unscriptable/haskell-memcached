@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
-module Network.Memcache.Key(Key, toKey) where
+module Network.Memcached.Key(Key, toKey) where
 
 -- TODO: get rid of this class. it's not actually helpful.
 
