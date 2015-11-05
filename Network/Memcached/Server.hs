@@ -43,7 +43,7 @@ data Server c where
   } -> Server P.Connection
   AutoConnected :: {
     aConn :: AutoConnection,
-    aExpirty :: P.Expiry,
+    aExpiry :: P.Expiry,
     aFlags :: Maybe P.Flags
   } -> Server AutoConnection
 
