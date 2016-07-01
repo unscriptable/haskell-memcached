@@ -95,7 +95,7 @@ delete (Connection handle) key = do
     return (response == "DELETED")
 
 expiryToWord :: Expiry -> Word32
-expiryToWord expiry = do
+expiryToWord expiry =
     case expiry of
         Never     -> 0
         Date d    -> floor (utcTimeToPOSIXSeconds d)

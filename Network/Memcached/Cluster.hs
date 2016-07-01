@@ -23,10 +23,13 @@ type Distribute = [Server AutoConnection] -> String -> Server AutoConnection
 -- ketama :: String -> [Server NoConnection] -> Server NoConnection
 -- ketama k (s : ss) = s -- temporary: get first
 
--- this seems ok for short keys
--- TODO: prevent empty list of servers from getting here
+-- | A simple distribution function.  Creates a ridiculously simple integer hash
+--  from a key and distributes it onto the list of servers.  This algorithm
+--  likely creates a "lumpy" distribution and might not be performant on very
+--  long keys.
+-- TODO: prevent empty list of servers from getting here (how?)
 simple :: Distribute
-simple (s : []) _ = s -- single server special case
+simple [s] _ = s -- single server special case
 simple ss k       = head . snd $ splitAt idx ss
   where
     idx = (hash . toKey) k `mod` length ss

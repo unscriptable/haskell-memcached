@@ -25,6 +25,8 @@ import Network (HostName, PortNumber)
         https://hackage.haskell.org/package/memcache
 -}
 
+{- TODO: create some examples for this code. -}
+
 -- | A memcached server connection.
 -- Sample creation:
 -- > let proto = configure Never Nothing

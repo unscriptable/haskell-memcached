@@ -30,7 +30,6 @@ instance Serializable ByteString where
     serialize   = id
     deserialize = Just
 
--- ...do I really need to copy everything instance of Show?
 instance Serializable Int where
   serialize   = encode . show
   deserialize = Just . read . decode
@@ -38,5 +37,3 @@ instance Serializable Int where
 instance (Serializable a) => Serializable [a] where
   serialize   = serializeL
   deserialize = Just . deserializeL
-
--- vim: set ts=2 sw=2 et :
