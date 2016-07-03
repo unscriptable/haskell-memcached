@@ -28,10 +28,6 @@ import Network (HostName, PortNumber)
 {- TODO: create some examples for this code. -}
 
 -- | A memcached server connection.
--- Sample creation:
--- > let proto = configure Never Nothing
--- mc <- connect "my-mc-server"
--- Reference: https://github.com/memcached/memcached/blob/master/doc/protocol.txt
 data Server c where
   Disconnected :: {
     dExpiry :: P.Expiry, -- ^ expiration

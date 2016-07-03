@@ -14,7 +14,8 @@ type Flags = Word32
 
 data Expiry =
     Never |
-    Seconds Word32 | -- ^ Limited at run-time to 1..2592000 seconds (30 days).
+    Asap |
+    Seconds Int32 | -- ^ Limited at run-time to 1..2592000 seconds (30 days).
     Date UTCTime
     deriving (Show)
 
@@ -94,20 +95,21 @@ delete (Connection handle) key = do
     response <- hGetNetLn handle
     return (response == "DELETED")
 
-expiryToWord :: Expiry -> Word32
+expiryToWord :: Expiry -> Int32
 expiryToWord expiry =
     case expiry of
         Never     -> 0
+        Never     -> -1
         Date d    -> floor (utcTimeToPOSIXSeconds d)
         Seconds s -> safeMemcachedSeconds s
 
-thirtyDays :: Word32
+thirtyDays :: Int32
 thirtyDays = 30 * 24 * 60 * 60
 
 -- | Prevents accidental conversion to other meanings for the `expiry` param.
 -- Memcached interprets anything over 30 days to be a unix timestamp and
 -- interprets 0 as "never expire".
-safeMemcachedSeconds :: Word32 -> Word32
+safeMemcachedSeconds :: Int32 -> Int32
 safeMemcachedSeconds seconds = max 1 $ min seconds thirtyDays
 
 showFlags :: Maybe Flags -> String
